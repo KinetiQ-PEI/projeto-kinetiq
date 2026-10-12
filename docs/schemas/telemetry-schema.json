@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BikeTelemetryEvent",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "description": "Schema version, e.g. 1.0."
+    },
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier of the telemetry event."
+    },
+    "bikeId": {
+      "type": "string",
+      "pattern": "^MB-\\d{4}-\\d{3}$",
+      "description": "Unique bike identifier (e.g. MB-2026-042)."
+    },
+    "deviceId": {
+      "type": "string",
+      "description": "Identifier of the IoT device that emitted the packet (provenance check)."
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp in milliseconds of data collection."
+    },
+    "location": {
+      "type": "object",
+      "properties": {
+        "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+        "longitude": { "type": "number", "minimum": -180, "maximum": 180 }
+      },
+      "required": ["latitude", "longitude"],
+      "additionalProperties": false
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "speed": { "type": "number", "minimum": 0, "maximum": 60, "description": "Current speed in km/h." },
+        "batteryLevel": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Remaining battery percentage." },
+        "odometer": { "type": "number", "minimum": 0, "description": "Total accumulated distance in km." }
+      },
+      "required": ["speed", "batteryLevel"],
+      "additionalProperties": false
+    },
+    "status": {
+      "type": "string",
+      "enum": ["AVAILABLE", "IN_USE", "IN_MAINTENANCE", "RETIRED"],
+      "description": "Current operational state of the bike."
+    }
+  },
+  "required": ["schemaVersion", "eventId", "bikeId", "timestamp", "location", "metrics", "status"],
+  "additionalProperties": false
+}
