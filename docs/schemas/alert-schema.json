@@ -3,9 +3,14 @@
   "title": "FleetAlertEvent",
   "type": "object",
   "properties": {
+    "schemaVersion": { "type": "string" },
     "alertId": { "type": "string", "format": "uuid" },
-    "bikeId": { "type": "string" },
-    "timestamp": { "type": "integer" },
+    "bikeId": { "type": "string", "pattern": "^MB-\\d{4}-\\d{3}$" },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp in milliseconds."
+    },
     "alertType": {
       "type": "string",
       "enum": ["LOW_BATTERY", "UNAUTHORIZED_ZONE", "MAINTENANCE_REQUIRED", "CONNECTION_LOST"]
@@ -14,10 +19,15 @@
       "type": "string",
       "enum": ["INFO", "WARNING", "CRITICAL"]
     },
+    "zoneId": {
+      "type": "string",
+      "description": "Zone involved (only for UNAUTHORIZED_ZONE)."
+    },
     "details": {
       "type": "string",
-      "description": "Descrição contextual do alerta gerado."
+      "description": "Contextual description of the generated alert."
     }
   },
-  "required": ["alertId", "bikeId", "timestamp", "alertType", "severity"]
+  "required": ["schemaVersion", "alertId", "bikeId", "timestamp", "alertType", "severity"],
+  "additionalProperties": false
 }
