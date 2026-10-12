@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   # 1. BROKER MQTT (Mosquitto)
   mosquitto:
-    image: eclipse-mosquitto:latest
+    image: eclipse-mosquitto:2
     container_name: mqtt_broker
     ports:
       - "1883:1883"
@@ -14,7 +12,7 @@ services:
 
   # 2. ZOOKEEPER (Gestor de cluster para o Kafka)
   zookeeper:
-    image: bitnami/zookeeper:latest
+    image: bitnami/zookeeper:3.9
     container_name: zookeeper
     environment:
       - ALLOW_ANONYMOUS_LOGIN=yes
@@ -23,7 +21,7 @@ services:
 
   # 3. APACHE KAFKA
   kafka:
-    image: bitnami/kafka:latest
+    image: bitnami/kafka:3.7
     container_name: kafka_broker
     ports:
       - "9092:9092"
