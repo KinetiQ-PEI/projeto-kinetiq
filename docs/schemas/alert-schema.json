@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FleetAlertEvent",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "alertId": { "type": "string", "format": "uuid" },
+    "bikeId": { "type": "string", "pattern": "^MB-\\d{4}-\\d{3}$" },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp in milliseconds."
+    },
+    "alertType": {
+      "type": "string",
+      "enum": ["LOW_BATTERY", "UNAUTHORIZED_ZONE", "MAINTENANCE_REQUIRED", "CONNECTION_LOST"]
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["INFO", "WARNING", "CRITICAL"]
+    },
+    "zoneId": {
+      "type": "string",
+      "description": "Zone involved (only for UNAUTHORIZED_ZONE)."
+    },
+    "details": {
+      "type": "string",
+      "description": "Contextual description of the generated alert."
+    }
+  },
+  "required": ["schemaVersion", "alertId", "bikeId", "timestamp", "alertType", "severity"],
+  "additionalProperties": false
+}
