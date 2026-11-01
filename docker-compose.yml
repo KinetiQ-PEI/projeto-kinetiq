@@ -7,14 +7,32 @@ name: kinetiq
 services:
   # ---------- Real-Time Path ----------
 
+  # Gera a CA e o certificado do listener TLS (8883) em infra/mosquitto/certs/ (corre e termina)
+  mosquitto-certs:
+    image: alpine/openssl:3.5.9
+    entrypoint: ["/bin/sh", "/generate-certs.sh"]
+    environment:
+      # IPs/nomes extra no certificado, ex.: IP:192.168.1.50 (para validar o TLS a partir de outra máquina)
+      MQTT_TLS_EXTRA_SAN: ${MQTT_TLS_EXTRA_SAN:-}
+    volumes:
+      - ./infra/mosquitto/generate-certs.sh:/generate-certs.sh:ro
+      - ./infra/mosquitto/certs:/certs
+    restart: "no"
+
   # Broker MQTT: recebe a telemetria dos ESP32 / simuladores
+  #   1883 MQTT | 8883 MQTT sobre TLS | 9001 MQTT sobre WebSockets
   mosquitto:
     image: eclipse-mosquitto:2
+    depends_on:
+      mosquitto-certs:
+        condition: service_completed_successfully
     ports:
       - "1883:1883"
+      - "8883:8883"
       - "9001:9001"
     volumes:
       - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./infra/mosquitto/certs:/mosquitto/certs:ro
       - mosquitto-data:/mosquitto/data
     healthcheck:
       test: ["CMD", "mosquitto_sub", "-t", "$$SYS/broker/uptime", "-C", "1", "-W", "3"]
@@ -56,6 +74,11 @@ services:
     restart: unless-stopped
 
   # Cria os tópicos do projeto (corre uma vez e termina)
+  #   telemetry.device.raw        payload tal como chegou por MQTT (chave = tópico MQTT)
+  #   telemetry.device.processed  telemetria validada/normalizada pelo Telemetry Processing Service
+  #   telemetry.device.dlq        mensagens que o processamento rejeitou (guardadas 30 dias)
+  # A DLQ tem tantas partições como o raw: o DeadLetterPublishingRecoverer do Spring Kafka
+  # envia para a mesma partição da mensagem original.
   kafka-init:
     image: apache/kafka:4.1.0
     depends_on:
@@ -64,14 +87,19 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        for topic in bike.telemetry fleet.alerts; do
-          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 \
-            --create --if-not-exists --topic "$$topic" --partitions 3 --replication-factor 1
-        done
+        set -e
+        create_topic() {
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists \
+            --topic "$$1" --partitions 3 --replication-factor 1 --config retention.ms="$$2"
+        }
+        create_topic telemetry.device.raw       604800000
+        create_topic telemetry.device.processed 604800000
+        create_topic telemetry.device.dlq       2592000000
+        create_topic fleet.alerts               604800000
     restart: "no"
 
   # Kafka Connect com os plugins MQTT Source, JDBC Sink e InfluxDB Sink
-  # REST API: http://localhost:8083 (registar connectors com POST /connectors)
+  # REST API: http://localhost:8083 (os connectors são registados pelo kafka-connect-init)
   kafka-connect:
     build: ./infra/kafka-connect
     depends_on:
@@ -100,6 +128,24 @@ services:
       retries: 12
       start_period: 30s
     restart: unless-stopped
+
+  # Regista/atualiza os connectors de infra/kafka-connect/connectors/ (corre uma vez e termina)
+  # Depois de editar um JSON, ou se um connector estiver FAILED: docker compose up kafka-connect-init
+  # Espera pelo Mosquitto: se a task MQTT arrancar com o broker em baixo, fica FAILED
+  kafka-connect-init:
+    image: curlimages/curl:8.17.0
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      kafka-connect:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/register-connectors.sh"]
+    volumes:
+      - ./infra/kafka-connect/register-connectors.sh:/register-connectors.sh:ro
+      - ./infra/kafka-connect/connectors:/connectors:ro
+    restart: "no"
 
   # UI web para inspecionar tópicos, mensagens e connectors: http://localhost:8089
   kafka-ui:

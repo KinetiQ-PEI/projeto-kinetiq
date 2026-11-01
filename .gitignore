@@ -1,2 +1,9 @@
 .env
 .DS_Store
+
+# Trabalho do PECI (Mobile HeartBox): só como referência local, não vai para o repositório
+PECI-g7-Mobile-Heart-Box-main/
+
+# Certificados TLS do Mosquitto, gerados pelo serviço mosquitto-certs no 1.º arranque
+infra/mosquitto/certs/*
+!infra/mosquitto/certs/.gitkeep
