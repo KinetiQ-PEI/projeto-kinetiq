@@ -8,6 +8,17 @@ import random
 import re
 from uuid import uuid4
 
+SECONDS_PER_HOUR = 3600
+MILLISECONDS_PER_SECOND = 1000
+DEFAULT_SAMPLE_INTERVAL_SECONDS = 1.0
+DEFAULT_SAMPLE_COUNT = 5
+BIKE_ID_PATTERN = r"MB-[0-9]{4}-[0-9]{3}"
+BIKE_ID_TEMPLATE = "MB-{year:04d}-{index:03d}"
+MIN_BIKE_YEAR = 1000
+MAX_BIKE_YEAR = 9999
+MAX_BIKE_INDEX = 999
+SCHEMA_VERSION = "1.0"
+
 
 class BikeSimulator:
     """Uma bicicleta num circuito circular fictício, sem correspondência às ruas.
@@ -21,28 +32,34 @@ class BikeSimulator:
     EARTH_RADIUS_KM = 6371.0
     ROUTE_RADIUS_KM = 0.6
     BATTERY_PERCENT_PER_KM = 1.25
+    INITIAL_BATTERY_PERCENT = 100.0
+    MIN_SPEED_KMH = 12.0
+    MAX_SPEED_KMH = 24.0
+    GPS_DECIMAL_PLACES = 7
+    SPEED_DECIMAL_PLACES = 3
+    ODOMETER_DECIMAL_PLACES = 6
 
     def __init__(self, bike_id: str, *, seed: int | None = None):
-        if not isinstance(bike_id, str) or not re.fullmatch(r"MB-[0-9]{4}-[0-9]{3}", bike_id):
+        if not isinstance(bike_id, str) or not re.fullmatch(BIKE_ID_PATTERN, bike_id):
             raise ValueError("bike_id deve seguir o formato MB-AAAA-NNN")
         self.bike_id = bike_id
         self._random = random.Random(seed)
         self._angle = self._random.uniform(0, math.tau)
         self._timestamp = datetime.now(timezone.utc)
         self.odometer = 0.0
-        self.battery_level = 100.0
+        self.battery_level = self.INITIAL_BATTERY_PERCENT
 
-    def next_sample(self, elapsed_seconds: float = 1.0) -> dict:
+    def next_sample(self, elapsed_seconds: float = DEFAULT_SAMPLE_INTERVAL_SECONDS) -> dict:
         """Avança um intervalo e devolve um evento conforme o schema do projeto."""
         if not math.isfinite(elapsed_seconds) or elapsed_seconds <= 0:
             raise ValueError("elapsed_seconds deve ser finito e maior que zero")
         timestamp = self._timestamp + timedelta(seconds=elapsed_seconds)
-        requested_speed = self._random.uniform(12.0, 24.0)
+        requested_speed = self._random.uniform(self.MIN_SPEED_KMH, self.MAX_SPEED_KMH)
         distance = min(
-            requested_speed * elapsed_seconds / 3600,
+            requested_speed * elapsed_seconds / SECONDS_PER_HOUR,
             self.battery_level / self.BATTERY_PERCENT_PER_KM,
         )
-        speed = distance * 3600 / elapsed_seconds
+        speed = distance * SECONDS_PER_HOUR / elapsed_seconds
         self.odometer += distance
         self.battery_level = max(
             0.0, self.battery_level - distance * self.BATTERY_PERCENT_PER_KM
@@ -58,19 +75,19 @@ class BikeSimulator:
             / math.cos(math.radians(self.CENTER_LATITUDE))
         )
         return {
-            "schemaVersion": "1.0",
+            "schemaVersion": SCHEMA_VERSION,
             "eventId": str(uuid4()),
             "bikeId": self.bike_id,
             "deviceId": f"simulator-{self.bike_id}",
-            "timestamp": int(timestamp.timestamp() * 1000),
+            "timestamp": int(timestamp.timestamp() * MILLISECONDS_PER_SECOND),
             "location": {
-                "latitude": round(latitude, 7),
-                "longitude": round(longitude, 7),
+                "latitude": round(latitude, self.GPS_DECIMAL_PLACES),
+                "longitude": round(longitude, self.GPS_DECIMAL_PLACES),
             },
             "metrics": {
-                "speed": round(speed, 3),
+                "speed": round(speed, self.SPEED_DECIMAL_PLACES),
                 "batteryLevel": round(self.battery_level),
-                "odometer": round(self.odometer, 6),
+                "odometer": round(self.odometer, self.ODOMETER_DECIMAL_PLACES),
             },
             "status": "IN_USE" if self.battery_level > 0 else "IN_MAINTENANCE",
         }
@@ -78,9 +95,10 @@ class BikeSimulator:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--bike-id", default="MB-2026-001")
-    parser.add_argument("--samples", type=int, default=5)
-    parser.add_argument("--interval", type=float, default=1.0,
+    parser.add_argument("--bike-id", default=BIKE_ID_TEMPLATE.format(
+        year=datetime.now(timezone.utc).year, index=1))
+    parser.add_argument("--samples", type=int, default=DEFAULT_SAMPLE_COUNT)
+    parser.add_argument("--interval", type=float, default=DEFAULT_SAMPLE_INTERVAL_SECONDS,
                         help="segundos simulados entre amostras; não espera em tempo real")
     parser.add_argument("--seed", type=int, help="semente para reproduzir o movimento")
     args = parser.parse_args()

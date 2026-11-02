@@ -1,6 +1,11 @@
 .env
 .DS_Store
 
+# Artefactos locais de Python, em qualquer serviço.
+__pycache__/
+*.py[cod]
+.venv/
+
 # Trabalho do PECI (Mobile HeartBox): só como referência local, não vai para o repositório
 PECI-g7-Mobile-Heart-Box-main/
 

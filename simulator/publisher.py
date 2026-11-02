@@ -15,9 +15,27 @@ from uuid import uuid4
 
 import paho.mqtt.client as mqtt
 
-from telemetry import BikeSimulator
+from telemetry import BIKE_ID_TEMPLATE, MAX_BIKE_INDEX, MAX_BIKE_YEAR, MIN_BIKE_YEAR, BikeSimulator
 
 LOGGER = logging.getLogger(__name__)
+
+DEFAULT_MQTT_HOST = "localhost"
+DEFAULT_MQTT_PORT = 1883
+DEFAULT_TOPIC_TEMPLATE = "kinetiq/bikes/{bike_id}/telemetry"
+MIN_BIKE_COUNT = 5
+DEFAULT_BIKE_COUNT = MIN_BIKE_COUNT
+DEFAULT_INTERVAL_SECONDS = 2.0
+DEFAULT_TIMEOUT_SECONDS = 10.0
+MIN_TCP_PORT = 1
+MAX_TCP_PORT = 65535
+MAX_MQTT_TOPIC_BYTES = 65535
+POLL_INTERVAL_SECONDS = 0.05
+NANOSECONDS_PER_MILLISECOND = 1_000_000
+MQTT_QOS = 1
+RECONNECT_MIN_DELAY_SECONDS = 1
+RECONNECT_MAX_DELAY_SECONDS = 5
+MQTT_KEEPALIVE_SECONDS = 30
+CLIENT_ID_RANDOM_LENGTH = 12
 
 
 @dataclass(frozen=True)
@@ -36,22 +54,22 @@ class Config:
     @classmethod
     def from_env(cls):
         config = cls(
-            host=os.getenv("MQTT_HOST", "localhost"),
-            port=int(os.getenv("MQTT_PORT", "1883")),
-            topic_template=os.getenv("MQTT_TOPIC_TEMPLATE", "kinetiq/bikes/{bike_id}/telemetry"),
-            bike_count=int(os.getenv("SIM_BIKE_COUNT", "5")),
+            host=os.getenv("MQTT_HOST", DEFAULT_MQTT_HOST),
+            port=int(os.getenv("MQTT_PORT", str(DEFAULT_MQTT_PORT))),
+            topic_template=os.getenv("MQTT_TOPIC_TEMPLATE", DEFAULT_TOPIC_TEMPLATE),
+            bike_count=int(os.getenv("SIM_BIKE_COUNT", str(DEFAULT_BIKE_COUNT))),
             bike_year=int(os.getenv("SIM_BIKE_YEAR", str(datetime.now(timezone.utc).year))),
-            interval=float(os.getenv("SIM_INTERVAL_SECONDS", "2")),
-            timeout=float(os.getenv("MQTT_TIMEOUT_SECONDS", "10")),
+            interval=float(os.getenv("SIM_INTERVAL_SECONDS", str(DEFAULT_INTERVAL_SECONDS))),
+            timeout=float(os.getenv("MQTT_TIMEOUT_SECONDS", str(DEFAULT_TIMEOUT_SECONDS))),
             seed=int(os.environ["SIM_SEED"]) if "SIM_SEED" in os.environ else None,
             username=os.getenv("MQTT_USERNAME") or None,
             password=os.getenv("MQTT_PASSWORD") or None,
         )
-        if not config.host.strip() or not 1 <= config.port <= 65535:
+        if not config.host.strip() or not MIN_TCP_PORT <= config.port <= MAX_TCP_PORT:
             raise ValueError("MQTT_HOST/MQTT_PORT inválidos")
-        if not 5 <= config.bike_count <= 999:
-            raise ValueError("SIM_BIKE_COUNT deve estar entre 5 e 999")
-        if not 1000 <= config.bike_year <= 9999:
+        if not MIN_BIKE_COUNT <= config.bike_count <= MAX_BIKE_INDEX:
+            raise ValueError(f"SIM_BIKE_COUNT deve estar entre {MIN_BIKE_COUNT} e {MAX_BIKE_INDEX}")
+        if not MIN_BIKE_YEAR <= config.bike_year <= MAX_BIKE_YEAR:
             raise ValueError("SIM_BIKE_YEAR deve ter quatro dígitos")
         for name, value in (("SIM_INTERVAL_SECONDS", config.interval),
                             ("MQTT_TIMEOUT_SECONDS", config.timeout)):
@@ -62,11 +80,13 @@ class Config:
         if config.topic_template.count("{bike_id}") != 1:
             raise ValueError("MQTT_TOPIC_TEMPLATE deve conter {bike_id} uma vez")
         try:
-            topic = config.topic_template.format(bike_id="MB-2026-001")
+            topic = config.topic_template.format(bike_id=BIKE_ID_TEMPLATE.format(
+                year=config.bike_year, index=1))
         except (KeyError, ValueError, IndexError, AttributeError) as error:
             raise ValueError("MQTT_TOPIC_TEMPLATE inválido") from error
-        if any(char in topic for char in ("+", "#", "\0")) or len(topic.encode()) > 65535:
-            raise ValueError("MQTT_TOPIC_TEMPLATE não pode conter wildcards ou exceder 65535 bytes")
+        if any(char in topic for char in ("+", "#", "\0")) or len(topic.encode()) > MAX_MQTT_TOPIC_BYTES:
+            raise ValueError(
+                f"MQTT_TOPIC_TEMPLATE não pode conter wildcards ou exceder {MAX_MQTT_TOPIC_BYTES} bytes")
         return config
 
 
@@ -79,12 +99,12 @@ def wait_until(predicate, stop, timeout, description):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError(description)
-        stop.wait(min(0.05, remaining))
+        stop.wait(min(POLL_INTERVAL_SECONDS, remaining))
     return False
 
 
 def publish_bike(client, config, bike_index, stop, messages_per_bike):
-    bike_id = f"MB-{config.bike_year:04d}-{bike_index:03d}"
+    bike_id = BIKE_ID_TEMPLATE.format(year=config.bike_year, index=bike_index)
     bike = BikeSimulator(bike_id, seed=None if config.seed is None else config.seed + bike_index)
     topic = config.topic_template.format(bike_id=bike_id)
     previous = time.monotonic()
@@ -96,9 +116,9 @@ def publish_bike(client, config, bike_index, stop, messages_per_bike):
         now = time.monotonic()
         sample = bike.next_sample(now - previous)
         # Na publicação, o timestamp é a hora real de recolha; o movimento usa tempo decorrido.
-        sample["timestamp"] = time.time_ns() // 1_000_000
+        sample["timestamp"] = time.time_ns() // NANOSECONDS_PER_MILLISECOND
         previous = now
-        result = client.publish(topic, json.dumps(sample, allow_nan=False), qos=1, retain=False)
+        result = client.publish(topic, json.dumps(sample, allow_nan=False), qos=MQTT_QOS, retain=False)
         if result.rc != mqtt.MQTT_ERR_SUCCESS:
             raise RuntimeError(f"{bike_id}: publicação recusada ({result.rc})")
         if not wait_until(result.is_published, stop, config.timeout,
@@ -116,9 +136,10 @@ def publish_bike(client, config, bike_index, stop, messages_per_bike):
 
 def run(config, stop, messages_per_bike=None):
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2,
-                         client_id=f"kinetiq-simulator-{uuid4().hex[:12]}")
+                         client_id=f"kinetiq-simulator-{uuid4().hex[:CLIENT_ID_RANDOM_LENGTH]}")
     client.connect_timeout = config.timeout
-    client.reconnect_delay_set(min_delay=1, max_delay=5)
+    client.reconnect_delay_set(min_delay=RECONNECT_MIN_DELAY_SECONDS,
+                               max_delay=RECONNECT_MAX_DELAY_SECONDS)
     client.max_queued_messages_set(config.bike_count)
     if config.username:
         client.username_pw_set(config.username, config.password)
@@ -135,7 +156,7 @@ def run(config, stop, messages_per_bike=None):
 
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
-    client.connect_async(config.host, config.port, keepalive=30)
+    client.connect_async(config.host, config.port, keepalive=MQTT_KEEPALIVE_SECONDS)
     client.loop_start()
     try:
         if not wait_until(client.is_connected, stop, config.timeout, "Não foi possível ligar ao broker MQTT"):
@@ -152,7 +173,7 @@ def run(config, stop, messages_per_bike=None):
                         for future in futures:
                             future.result()
                         break
-                    stop.wait(0.05)
+                    stop.wait(POLL_INTERVAL_SECONDS)
             finally:
                 stop.set()
     finally:

@@ -49,8 +49,8 @@ services:
       mosquitto:
         condition: service_healthy
     environment:
-      - MQTT_HOST=mosquitto
-      - MQTT_PORT=1883
+      - MQTT_HOST=${MQTT_HOST:-mosquitto}
+      - MQTT_PORT=${MQTT_PORT:-1883}
       - SIM_BIKE_COUNT=${SIM_BIKE_COUNT:-5}
       - SIM_INTERVAL_SECONDS=${SIM_INTERVAL_SECONDS:-2}
       - MQTT_TIMEOUT_SECONDS=${MQTT_TIMEOUT_SECONDS:-10}
