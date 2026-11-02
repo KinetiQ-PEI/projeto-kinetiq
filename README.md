@@ -34,7 +34,69 @@ Serviços que correm uma vez e terminam:
 | `kafka-init`         | cria os tópicos Kafka                                                     |
 | `kafka-connect-init` | regista/atualiza os connectors de `infra/kafka-connect/connectors/`       |
 
-### Pipeline de ingestão
+### Simulador IoT (KIQ-36)
+
+```bash
+docker compose up -d --build simulator
+docker compose logs -f simulator
+docker compose exec mosquitto mosquitto_sub -t 'kinetiq/bikes/+/telemetry' -v
+docker compose stop simulator
+```
+
+O serviço simula cinco bicicletas em simultâneo e publica telemetria a cada dois
+segundos, conforme o [schema do projeto](docs/schemas/telemetry-schema.json).
+Está no perfil `simulation`: arranca quando indicado explicitamente ou com
+`docker compose --profile simulation up -d --build` (infraestrutura completa).
+
+O simulador aguarda pelo estado saudável do Mosquitto e, por omissão, liga-se a
+`mosquitto:1883`. `MQTT_HOST` e `MQTT_PORT` permitem escolher outro broker MQTT TCP.
+Em Docker, `localhost` refere-se ao próprio contentor; para um broker no host com
+Docker Desktop, usar `host.docker.internal`.
+Publica com QoS 1 nos tópicos `kinetiq/bikes/<bikeId>/telemetry`; cada evento tem
+UUID próprio e timestamp Unix em milissegundos. Os trajetos são fictícios, na zona
+de Aveiro, com velocidade em km/h, odómetro em km e bateria em percentagem inteira.
+O odómetro e a bateria reiniciam em cada execução.
+
+Este contrato mantém o schema e os tópicos existentes do projeto, conforme a
+decisão de integração da KIQ-36; substitui o formato plano e o timestamp ISO-8601
+do enunciado inicial.
+
+Configurar no `.env` da raiz ou nas variáveis de ambiente; exemplos em
+[.env.example](.env.example). Depois de alterar, executar `docker compose up -d simulator`.
+
+| Variável | Valor por omissão | Função |
+|----------|-------------------|--------|
+| `MQTT_HOST` | `mosquitto` no Compose; `localhost` em Python local | Endereço do broker |
+| `MQTT_PORT` | `1883` | Porta MQTT TCP, sem TLS |
+| `SIM_BIKE_COUNT` | `5` | Número de bicicletas (5–999) |
+| `SIM_INTERVAL_SECONDS` | `2` | Intervalo entre mensagens de cada bicicleta |
+| `SIM_BIKE_YEAR` | Ano UTC atual | Ano dos IDs `MB-AAAA-NNN` |
+| `SIM_SEED` | Aleatória | Semente opcional para reproduzir os movimentos |
+| `MQTT_TIMEOUT_SECONDS` | `10` | Limite de espera de ligação ou confirmação |
+| `MQTT_TOPIC_TEMPLATE` | `kinetiq/bikes/{bike_id}/telemetry` | Tópico; deve conter `{bike_id}` uma vez |
+| `MQTT_USERNAME` / `MQTT_PASSWORD` | Sem valores | Autenticação opcional |
+
+Manter o tópico por omissão para corresponder à subscrição do conector Kafka.
+As variáveis configuram o destino do simulador; não alteram o listener do Mosquitto
+nem o destino do conector Kafka. O Compose mantém a dependência do Mosquitto local,
+mesmo quando se escolhe um broker externo.
+
+Os parâmetros físicos, precisões, limites e temporizações internas estão definidos
+como constantes em `simulator/telemetry.py` e `simulator/publisher.py`. A dependência
+MQTT está fixada em `requirements.txt` e a imagem Python está fixada por digest no
+Dockerfile; atualizar estas referências explicitamente ao atualizar versões.
+
+O cliente tenta reconectar após perda da ligação. Se a ligação ou uma confirmação
+não chegar dentro de `MQTT_TIMEOUT_SECONDS`, termina com erro e o Compose reinicia-o.
+QoS 1 pode entregar duplicados; usar `eventId` para os identificar.
+
+Para uma execução finita, com três mensagens por bicicleta:
+
+```bash
+docker compose run --rm simulator --messages-per-bike 3
+```
+
+### Ingestion Pipeline
 
 ```
 ESP32 / simulador ──MQTT──▶ Mosquitto ──MQTT Source connector──▶ Kafka: telemetry.device.raw

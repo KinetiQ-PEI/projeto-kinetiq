@@ -41,6 +41,28 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Frota fictícia: docker compose up -d --build simulator
+  simulator:
+    build: ./simulator
+    profiles: [simulation]
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    environment:
+      - MQTT_HOST=${MQTT_HOST:-mosquitto}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - SIM_BIKE_COUNT=${SIM_BIKE_COUNT:-5}
+      - SIM_INTERVAL_SECONDS=${SIM_INTERVAL_SECONDS:-2}
+      - MQTT_TIMEOUT_SECONDS=${MQTT_TIMEOUT_SECONDS:-10}
+      # Omitidas quando não definidas: o script usa os seus valores por omissão.
+      - MQTT_TOPIC_TEMPLATE
+      - MQTT_USERNAME
+      - MQTT_PASSWORD
+      - SIM_BIKE_YEAR
+      - SIM_SEED
+    restart: unless-stopped
+    stop_grace_period: 15s
+
   # Kafka em modo KRaft (sem Zookeeper)
   #   - dentro da rede docker: kafka:29092
   #   - a partir do host:      localhost:9092
