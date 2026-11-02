@@ -47,7 +47,32 @@ O serviço simula cinco bicicletas em simultâneo e publica telemetria a cada do
 segundos, conforme o [schema do projeto](docs/schemas/telemetry-schema.json).
 Está no perfil `simulation`: arranca quando indicado explicitamente ou com
 `docker compose --profile simulation up -d --build` (infraestrutura completa).
-Configuração e testes de aceitação no [README do simulador](simulator/README.md).
+
+O simulador aguarda pelo estado saudável do Mosquitto e liga-se a `mosquitto:1883`.
+Publica com QoS 1 nos tópicos `kinetiq/bikes/<bikeId>/telemetry`; cada evento tem
+UUID próprio e timestamp Unix em milissegundos. Os trajetos são fictícios, na zona
+de Aveiro, com velocidade em km/h, odómetro em km e bateria em percentagem inteira.
+O odómetro e a bateria reiniciam em cada execução.
+
+Configurar no `.env` da raiz ou nas variáveis de ambiente; exemplos em
+[.env.example](.env.example). Depois de alterar, executar `docker compose up -d simulator`.
+
+| Variável | Valor por omissão | Função |
+|----------|-------------------|--------|
+| `SIM_BIKE_COUNT` | `5` | Número de bicicletas (5–999) |
+| `SIM_INTERVAL_SECONDS` | `2` | Intervalo entre mensagens de cada bicicleta |
+| `SIM_BIKE_YEAR` | Ano UTC atual | Ano dos IDs `MB-AAAA-NNN` |
+| `SIM_SEED` | Aleatória | Semente opcional para reproduzir os movimentos |
+| `MQTT_TIMEOUT_SECONDS` | `10` | Limite de espera de ligação ou confirmação |
+| `MQTT_TOPIC_TEMPLATE` | `kinetiq/bikes/{bike_id}/telemetry` | Tópico; deve conter `{bike_id}` uma vez |
+| `MQTT_USERNAME` / `MQTT_PASSWORD` | Sem valores | Autenticação opcional |
+
+Manter o tópico por omissão para corresponder à subscrição do conector Kafka.
+Para uma execução finita, com três mensagens por bicicleta:
+
+```bash
+docker compose run --rm simulator --messages-per-bike 3
+```
 
 ### Ingestion Pipeline
 
