@@ -1,0 +1,12 @@
+{
+  "connector.class": "io.lenses.streamreactor.connect.mqtt.source.MqttSourceConnector",
+  "tasks.max": "1",
+  "connect.mqtt.hosts": "tcp://mosquitto:1883",
+  "connect.mqtt.service.quality": "1",
+  "connect.mqtt.kcql": "INSERT INTO telemetry.device.raw SELECT * FROM kinetiq/bikes/+/telemetry;INSERT INTO telemetry.device.raw SELECT * FROM heartbox/gps/+;INSERT INTO telemetry.device.raw SELECT * FROM heartbox/heart/+;INSERT INTO telemetry.device.raw SELECT * FROM heartbox/alerts/+;INSERT INTO telemetry.device.raw SELECT * FROM heartbox/sensor/+",
+  "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+  "value.converter": "org.apache.kafka.connect.converters.ByteArrayConverter",
+  "transforms": "mqttTopicAsKey",
+  "transforms.mqttTopicAsKey.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
+  "transforms.mqttTopicAsKey.field": "topic"
+}
