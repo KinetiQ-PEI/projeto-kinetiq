@@ -10,6 +10,7 @@ import sys
 import threading
 import time
 import unittest
+from uuid import uuid4
 
 import paho.mqtt.client as mqtt
 
@@ -17,7 +18,10 @@ from publisher import Config
 from test_telemetry import VALIDATOR
 
 
-@unittest.skipUnless(os.getenv("RUN_MQTT_INTEGRATION") == "1", "requer RUN_MQTT_INTEGRATION=1 e broker")
+@unittest.skipUnless(
+    os.getenv("RUN_MQTT_INTEGRATION") == "1" or os.getenv("RUN_DOCKER_INTEGRATION") == "1",
+    "requer RUN_MQTT_INTEGRATION=1 ou RUN_DOCKER_INTEGRATION=1 e broker",
+)
 class MqttIntegrationTests(unittest.TestCase):
     def test_five_bikes_publish_valid_moving_telemetry(self):
         config = Config.from_env()
@@ -30,15 +34,24 @@ class MqttIntegrationTests(unittest.TestCase):
         client.on_message = lambda client, userdata, message: received.put((message.topic, message.payload))
         client.connect(config.host, config.port)
         client.loop_start()
+        container_name = None
         try:
             client.subscribe(config.topic_template.format(bike_id="+"), qos=1)
             self.assertTrue(subscribed.wait(5), "Subscrição não confirmada")
             env = {**os.environ, "SIM_BIKE_COUNT": "5", "SIM_INTERVAL_SECONDS": "0.2",
                    "SIM_BIKE_YEAR": "2026", "SIM_SEED": "36"}
             started = time.time_ns() // 1_000_000
+            command = [sys.executable, str(Path(__file__).with_name("publisher.py")),
+                       "--messages-per-bike", "3"]
+            if os.getenv("RUN_DOCKER_INTEGRATION") == "1":
+                container_name = f"kinetiq-simulator-test-{uuid4().hex[:12]}"
+                command = ["docker", "compose", "run", "--rm", "--no-deps", "-T",
+                           "--name", container_name, "-e", "SIM_BIKE_COUNT=5",
+                           "-e", "SIM_INTERVAL_SECONDS=0.2", "-e", "SIM_BIKE_YEAR=2026",
+                           "-e", "SIM_SEED=36", "simulator", "--messages-per-bike", "3"]
             result = subprocess.run(
-                [sys.executable, str(Path(__file__).with_name("publisher.py")), "--messages-per-bike", "3"],
-                env=env, capture_output=True, text=True, timeout=20,
+                command, cwd=Path(__file__).resolve().parents[1],
+                env=env, capture_output=True, text=True, timeout=60,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             events = defaultdict(dict)
@@ -66,6 +79,10 @@ class MqttIntegrationTests(unittest.TestCase):
         finally:
             client.disconnect()
             client.loop_stop()
+            if container_name:
+                # Também limpa o contentor se o comando Compose exceder o timeout.
+                subprocess.run(["docker", "rm", "-f", container_name],
+                               capture_output=True, timeout=10, check=False)
 
 
 if __name__ == "__main__":

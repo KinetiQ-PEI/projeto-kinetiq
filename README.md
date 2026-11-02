@@ -34,7 +34,22 @@ Serviços que correm uma vez e terminam:
 | `kafka-init`         | cria os tópicos Kafka                                                     |
 | `kafka-connect-init` | regista/atualiza os connectors de `infra/kafka-connect/connectors/`       |
 
-### Pipeline de ingestão
+### Simulador IoT (KIQ-36)
+
+```bash
+docker compose up -d --build simulator
+docker compose logs -f simulator
+docker compose exec mosquitto mosquitto_sub -t 'kinetiq/bikes/+/telemetry' -v
+docker compose stop simulator
+```
+
+O serviço simula cinco bicicletas em simultâneo e publica telemetria a cada dois
+segundos, conforme o [schema do projeto](docs/schemas/telemetry-schema.json).
+Está no perfil `simulation`: arranca quando indicado explicitamente ou com
+`docker compose --profile simulation up -d --build` (infraestrutura completa).
+Configuração e testes de aceitação no [README do simulador](simulator/README.md).
+
+### Ingestion Pipeline
 
 ```
 ESP32 / simulador ──MQTT──▶ Mosquitto ──MQTT Source connector──▶ Kafka: telemetry.device.raw
