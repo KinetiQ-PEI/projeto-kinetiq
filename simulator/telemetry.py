@@ -5,6 +5,8 @@ from datetime import datetime, timedelta, timezone
 import json
 import math
 import random
+import re
+from uuid import uuid4
 
 
 class BikeSimulator:
@@ -21,8 +23,8 @@ class BikeSimulator:
     BATTERY_PERCENT_PER_KM = 1.25
 
     def __init__(self, bike_id: str, *, seed: int | None = None):
-        if not isinstance(bike_id, str) or not bike_id.strip():
-            raise ValueError("bike_id deve ser uma string não vazia")
+        if not isinstance(bike_id, str) or not re.fullmatch(r"MB-[0-9]{4}-[0-9]{3}", bike_id):
+            raise ValueError("bike_id deve seguir o formato MB-AAAA-NNN")
         self.bike_id = bike_id
         self._random = random.Random(seed)
         self._angle = self._random.uniform(0, math.tau)
@@ -31,7 +33,7 @@ class BikeSimulator:
         self.battery_level = 100.0
 
     def next_sample(self, elapsed_seconds: float = 1.0) -> dict:
-        """Avança um intervalo positivo e devolve os sete campos da KIQ-36."""
+        """Avança um intervalo e devolve um evento conforme o schema do projeto."""
         if not math.isfinite(elapsed_seconds) or elapsed_seconds <= 0:
             raise ValueError("elapsed_seconds deve ser finito e maior que zero")
         timestamp = self._timestamp + timedelta(seconds=elapsed_seconds)
@@ -56,13 +58,21 @@ class BikeSimulator:
             / math.cos(math.radians(self.CENTER_LATITUDE))
         )
         return {
-            "bike_id": self.bike_id,
-            "timestamp": timestamp.isoformat(timespec="microseconds").replace("+00:00", "Z"),
-            "latitude": round(latitude, 7),
-            "longitude": round(longitude, 7),
-            "speed": round(speed, 3),
-            "battery_level": round(self.battery_level, 6),
-            "odometer": round(self.odometer, 6),
+            "schemaVersion": "1.0",
+            "eventId": str(uuid4()),
+            "bikeId": self.bike_id,
+            "deviceId": f"simulator-{self.bike_id}",
+            "timestamp": int(timestamp.timestamp() * 1000),
+            "location": {
+                "latitude": round(latitude, 7),
+                "longitude": round(longitude, 7),
+            },
+            "metrics": {
+                "speed": round(speed, 3),
+                "batteryLevel": round(self.battery_level),
+                "odometer": round(self.odometer, 6),
+            },
+            "status": "IN_USE" if self.battery_level > 0 else "IN_MAINTENANCE",
         }
 
 
