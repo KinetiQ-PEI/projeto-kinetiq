@@ -15,6 +15,7 @@ export default function App() {
         <Route index element={<OverviewPage />} />
         <Route path="live-map" element={<LiveMapPage />} />
         <Route path="bikes" element={<BikesPage />} />
+        <Route path="bikes/:bikeId" element={<BikesPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="users-modules" element={<UsersModulesPage />} />

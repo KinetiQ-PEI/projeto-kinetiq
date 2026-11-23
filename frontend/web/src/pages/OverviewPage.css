@@ -1,0 +1,15 @@
+.overview__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+/* Fleet by state + hourly chart, one card each, stacked. */
+.overview__column {
+  flex: 3 1 480px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
