@@ -1,0 +1,35 @@
+.card--panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.card__title {
+  font-size: 22px;
+}
+
+.card__meta {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* Text links outside sentences ("View all"): WCAG 2.5.8 target size, from a11y.css. */
+.card__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+}
