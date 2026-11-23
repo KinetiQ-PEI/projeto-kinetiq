@@ -57,6 +57,7 @@ export const hourlyUsage = {
 }
 
 // Open alerts, shaped like FleetAlertEvent (docs/schemas/alert-schema.json).
+// `details` is shown as the row title, so it should be short (to confirm with the backend).
 // `title` is what the UI shows; in the schema this text lives in `details`.
 export const openAlerts = [
   {
@@ -67,7 +68,7 @@ export const openAlerts = [
     alertType: 'ML_ANOMALY', // TODO (to confirm): not in the schema enum
     severity: 'CRITICAL',
     zoneId: 'library-hub',
-    details: 'Battery draining 3× faster than model average',
+    details: 'Abnormal battery drain (3×)',
   },
   {
     schemaVersion: '1.0',
@@ -77,7 +78,7 @@ export const openAlerts = [
     alertType: 'UNAUTHORIZED_ZONE',
     severity: 'WARNING',
     zoneId: 'north-campus',
-    details: 'Left the authorized perimeter',
+    details: 'Out of perimeter',
   },
   {
     schemaVersion: '1.0',
@@ -87,7 +88,7 @@ export const openAlerts = [
     alertType: 'LOW_BATTERY',
     severity: 'WARNING',
     zoneId: 'station-hub', // schema says zoneId is only for UNAUTHORIZED_ZONE; kept to show the zone in the UI
-    details: 'Battery at 12%',
+    details: 'Low battery (12%)',
   },
   {
     schemaVersion: '1.0',
@@ -97,7 +98,7 @@ export const openAlerts = [
     alertType: 'CONNECTION_LOST',
     severity: 'INFO',
     zoneId: 'sports-hall',
-    details: 'No signal for 4 minutes',
+    details: 'Signal lost (4 min)',
   },
 ]
 
