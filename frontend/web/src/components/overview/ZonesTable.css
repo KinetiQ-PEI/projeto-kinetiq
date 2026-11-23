@@ -1,0 +1,82 @@
+.zones-table__scroll {
+  overflow-x: auto;
+  position: relative; /* WCAG 1.4.10: keep the sr-only caption inside the scroll box */
+}
+
+.zones-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.zones-table thead th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5b6478; /* WCAG 1.4.3: #667085 on this background was 4.47:1 */
+}
+
+.zones-table thead th:first-child,
+.zones-table tbody th {
+  padding-left: 0;
+}
+
+.zones-table tbody tr {
+  border-top: 1px solid var(--color-border);
+}
+
+.zones-table tbody th,
+.zones-table td {
+  padding: 12px;
+}
+
+.zones-table tbody th {
+  text-align: left;
+  font-weight: 600;
+}
+
+.zones-table td:last-child,
+.zones-table thead th:last-child {
+  padding-right: 0;
+}
+
+.zones-table .is-number {
+  text-align: right;
+}
+
+.zones-table__availability {
+  width: 34%;
+}
+
+.zones-table__meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zones-table__track {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.zones-table__fill {
+  height: 100%;
+  background: var(--color-success);
+}
+
+.zones-table__value {
+  width: 40px;
+  text-align: right;
+}
+
+.zones-table__empty {
+  margin: 0;
+  color: var(--color-text-muted);
+}
