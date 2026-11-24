@@ -60,7 +60,7 @@ CREATE TABLE alerts (
     occurred_at     TIMESTAMPTZ  NOT NULL,
     received_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
     acknowledged_at TIMESTAMPTZ,
-    CONSTRAINT alerts_type_valid     CHECK (alert_type IN ('LOW_BATTERY', 'UNAUTHORIZED_ZONE', 'MAINTENANCE_REQUIRED', 'CONNECTION_LOST')),
+    CONSTRAINT alerts_type_valid     CHECK (alert_type IN ('LOW_BATTERY', 'UNAUTHORIZED_ZONE', 'MAINTENANCE_REQUIRED', 'CONNECTION_LOST', 'ML_ANOMALY')),
     CONSTRAINT alerts_severity_valid CHECK (severity IN ('INFO', 'WARNING', 'CRITICAL')),
     CONSTRAINT alerts_zone_when_zone CHECK (alert_type <> 'UNAUTHORIZED_ZONE' OR zone_code IS NOT NULL)
 );
