@@ -82,6 +82,7 @@ Gerido pelo Flyway do Fleet Management Service (`backend/fleet-management/src/ma
 |---|---|---|
 | `V1__bike_lifecycle.sql` | `bikes` (estado) e `bike_state_transitions` | Máquina de estados |
 | `V2__fleet_data_model.sql` | Zonas, posições, alertas, tickets, viagens, event store, vistas | Modelos de dados |
+| `V2_1__data_model_fixes.sql` | Correções da revisão: event store sem `DELETE`, retenção e direito ao esquecimento, `zone_for_point`, zona proibida de exemplo | Modelos de dados |
 | `V3__...` | Colunas de registo da bicicleta (série, IMEI, modelo, hub, pool) | Endpoints de registo |
 
 ```mermaid
@@ -145,15 +146,23 @@ erDiagram
 | `alerts` | Alertas recebidos de `fleet.alerts` | Tipo e severidade iguais ao schema; `UNAUTHORIZED_ZONE` exige zona; `alert_id` único (reenvios não duplicam) |
 | `maintenance_tickets` | Fila do técnico (UC05–UC07) | Cada estado do ticket tem os campos certos (ex.: `CLAIMED` exige técnico e hora); datas por ordem; código `T-0001` automático |
 | `trips` | Viagens (UC12, CO₂, analytics) | No máximo **uma viagem em curso por bicicleta**; fim depois do início; rota só depois de terminar |
-| `fleet_events` | Cópia durável dos eventos de domínio | **Só se acrescentam linhas** (um `UPDATE` dá erro); `event_id` único |
+| `fleet_events` | Cópia durável dos eventos de domínio | **Só se acrescentam linhas**: `UPDATE` e `DELETE` dão erro, exceto dentro das funções de retenção e de esquecimento; `event_id` único |
 
 Também cria:
 - `purge_expired_trips()`: apaga as viagens terminadas há mais de 90 dias e devolve quantas apagou.
   O Fleet Management deve chamá-la uma vez por dia.
+- `purge_expired_fleet_events()`: apaga os eventos com mais de 400 dias (os eventos de estado trazem o
+  `actorId` do rider). Também uma vez por dia.
+- `forget_rider(rider_id)`: direito ao esquecimento. Apaga as viagens e os eventos do rider e tira o id
+  dele do histórico de estados (a mudança de estado fica, sem dizer quem a pediu).
+- `zone_for_point(ponto)`: a zona onde está um ponto. As zonas sobrepõem-se, por isso escolhe a mais
+  específica: proibida > hub > área de operação (em empate, a mais pequena). Usar ao gravar
+  `bike_positions.zone_id`.
 - `v_fleet_state_counts`: número de bicicletas por estado (KPI do Overview).
 - `v_bike_overview`: estado, bateria, posição, zona e tickets abertos de cada bicicleta (Bikes e Live map).
-- 5 zonas de exemplo à volta do circuito do simulador: a área de operação `CAMPUS_AVEIRO` e os hubs
-  `NORTH_CAMPUS`, `LIBRARY_HUB`, `STATION_HUB` e `SPORTS_HALL` (os nomes dos mockups).
+- 6 zonas de exemplo à volta do circuito do simulador: a área de operação `CAMPUS_AVEIRO`, os hubs
+  `NORTH_CAMPUS`, `LIBRARY_HUB`, `STATION_HUB` e `SPORTS_HALL` (os nomes dos mockups) e a zona proibida
+  `CONSTRUCTION_SITE`, que o circuito atravessa (para testar alertas `UNAUTHORIZED_ZONE`).
 
 ## 4. Ligação Kafka → bases de dados (sinks)
 
