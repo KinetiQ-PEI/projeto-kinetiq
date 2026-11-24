@@ -247,6 +247,48 @@ docker compose exec mosquitto mosquitto_pub -t kinetiq/bikes/MB-2026-042/telemet
 # ...ou como se fosse a HeartBox
 docker compose exec mosquitto mosquitto_pub -t heartbox/heart/bpm -m 72
 ```
+### Validar o pipeline de ingestão
+
+O [tools/validate_ingestion.py](tools/validate_ingestion.py) lê o `telemetry.device.raw` e verifica os
+critérios de aceitação para as mensagens das bicicletas (as da HeartBox são ignoradas):
+
+| Verificação | Como |
+|---|---|
+| Sem corrupção | cada payload é JSON válido, cumpre o [schema](docs/schemas/telemetry-schema.json) e a chave Kafka corresponde ao `bikeId` |
+| 5 bicicletas a 1 msg/s | n.º de bicicletas e intervalo mediano entre mensagens de cada uma (±20%) |
+| Latência < 100 ms | timestamp do registo no Kafka − timestamp do payload (hora de publicação MQTT); critério no p95, mostra também p50/p99/máx |
+| Sem perdas | com `--expected-per-bike N`, cada bicicleta tem de ter N `eventId` distintos no Kafka |
+| Duplicados | `eventId` repetidos (o QoS 1 permite-os); só informativo |
+
+Termina com código 0 se tudo passar e 1 se algum critério falhar.
+
+```bash
+docker compose up -d --build                    # infraestrutura (esperar por "healthy")
+
+# Terminal 1: começa a ler o Kafka (termina sozinho quando chegarem todas as mensagens)
+uv run tools/validate_ingestion.py --expected-per-bike 60
+
+# Terminal 2: 5 bicicletas, 1 mensagem/s cada, 60 mensagens por bicicleta
+docker compose run --rm -e SIM_INTERVAL_SECONDS=1 simulator --messages-per-bike 60
+```
+
+Sem `uv`: `pip install confluent-kafka jsonschema` e `python3 tools/validate_ingestion.py ...`.
+Para analisar mensagens que já passaram, usar `--since-seconds 120` (últimos 2 minutos).
+Ver todas as opções com `--help`.
+
+**Resiliência a desconexões.** Repetir o teste com `--duration 150` e, a meio da simulação, num
+terceiro terminal:
+
+```bash
+docker compose restart mosquitto        # o simulador e o connector perdem a ligação ao broker
+docker compose restart kafka-connect    # o connector MQTT -> Kafka é reiniciado
+```
+
+O validador mostra se houve mensagens perdidas, duplicadas ou corrompidas. O simulador espera até
+`MQTT_TIMEOUT_SECONDS` (10 s) pela ligação; se o broker estiver em baixo mais tempo, termina com erro.
+O connector usa sessões MQTT limpas (`connect.mqtt.clean` fica no valor por omissão e não há
+`client.id` fixo, ver "Connectors"): o que for publicado enquanto ele está desligado do Mosquitto não
+lhe fica guardado. Se o validador mostrar perdas depois de um reinício, a causa provável é esta.
 
 ### Ligar hardware real ao broker MQTT
 
