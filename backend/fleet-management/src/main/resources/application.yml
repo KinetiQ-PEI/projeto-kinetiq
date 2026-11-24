@@ -1,0 +1,34 @@
+server:
+  # A 8080 fica para a API Gateway (ver README do repositório)
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: fleet-management
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/kinetiq}
+    username: ${DB_USER:kinetiq}
+    password: ${DB_PASSWORD:kinetiq}
+  jpa:
+    open-in-view: false
+    hibernate:
+      # O esquema é gerido pelo Flyway (src/main/resources/db/migration); o Hibernate só confirma.
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      properties:
+        # O JSON sai limpo, sem cabeçalhos de tipo Java (consumidores em Python/Node também o leem)
+        spring.json.add.type.headers: false
+  mvc:
+    problemdetails:
+      enabled: true
+
+kinetiq:
+  topics:
+    fleet-status: ${KINETIQ_TOPIC_FLEET_STATUS:fleet.events.status}

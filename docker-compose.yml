@@ -99,6 +99,7 @@ services:
   #   telemetry.device.raw        payload tal como chegou por MQTT (chave = tópico MQTT)
   #   telemetry.device.processed  telemetria validada/normalizada pelo Telemetry Processing Service
   #   telemetry.device.dlq        mensagens que o processamento rejeitou (guardadas 30 dias)
+  #   fleet.events.status         mudanças de estado das bicicletas (Fleet Management Service)
   # A DLQ tem tantas partições como o raw: o DeadLetterPublishingRecoverer do Spring Kafka
   # envia para a mesma partição da mensagem original.
   kafka-init:
@@ -118,6 +119,7 @@ services:
         create_topic telemetry.device.processed 604800000
         create_topic telemetry.device.dlq       2592000000
         create_topic fleet.alerts               604800000
+        create_topic fleet.events.status        604800000
     restart: "no"
 
   # Kafka Connect com os plugins MQTT Source, JDBC Sink e InfluxDB Sink
