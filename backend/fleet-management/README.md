@@ -124,8 +124,9 @@ Os testes cobrem:
 
 - O tópico `fleet.events.status` é criado pelo `kafka-init` do `docker-compose.yml` da raiz.
 - O contrato do evento está também em `docs/schemas/bike-state-changed-schema.json`.
-- A tabela `bikes` é criada aqui só com as colunas do ciclo de vida. Os endpoints de registo acrescentam
-  as suas colunas numa migração `V2__...` e criam as bicicletas com `new Bike(bikeId, agora)`, que as põe
-  em `AVAILABLE`.
+- A tabela `bikes` é criada aqui só com as colunas do ciclo de vida. O resto do modelo de dados (zonas,
+  posições, alertas, tickets, viagens, event store) está em `V2__fleet_data_model.sql`, explicado em
+  `docs/data-model.md`. Os endpoints de registo acrescentam as suas colunas numa migração `V3__...` e
+  criam as bicicletas com `new Bike(bikeId, agora)`, que as põe em `AVAILABLE`.
 - As 5 bicicletas de exemplo (`MB-2026-001` a `005`, as mesmas do simulador) estão no fim de
   `V1__bike_lifecycle.sql`. Apagar essas linhas quando o registo estiver ligado.

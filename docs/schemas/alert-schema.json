@@ -13,7 +13,8 @@
     },
     "alertType": {
       "type": "string",
-      "enum": ["LOW_BATTERY", "UNAUTHORIZED_ZONE", "MAINTENANCE_REQUIRED", "CONNECTION_LOST"]
+      "enum": ["LOW_BATTERY", "UNAUTHORIZED_ZONE", "MAINTENANCE_REQUIRED", "CONNECTION_LOST", "ML_ANOMALY"],
+      "description": "ML_ANOMALY: anomaly detected by the ML module (RF12)."
     },
     "severity": {
       "type": "string",
@@ -21,13 +22,16 @@
     },
     "zoneId": {
       "type": "string",
-      "description": "Zone involved (only for UNAUTHORIZED_ZONE)."
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "description": "Code of the zone where the bike is (e.g. LIBRARY_HUB), as in the zones table. Optional for every alert type; required for UNAUTHORIZED_ZONE."
     },
     "details": {
       "type": "string",
-      "description": "Contextual description of the generated alert."
+      "description": "Short description of the alert, shown as the row title in the dashboard (e.g. 'Low battery (12%)')."
     }
   },
   "required": ["schemaVersion", "alertId", "bikeId", "timestamp", "alertType", "severity"],
+  "if": { "properties": { "alertType": { "const": "UNAUTHORIZED_ZONE" } } },
+  "then": { "required": ["zoneId"] },
   "additionalProperties": false
 }
