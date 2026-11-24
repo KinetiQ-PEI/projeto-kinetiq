@@ -62,7 +62,7 @@ src/main/java/pt/ua/kinetiq/fleet/lifecycle/
 ├── events/       BikeStateChangedEvent e envio para o Kafka depois do commit
 └── api/          endpoints REST e tradução dos erros para HTTP
 src/main/resources/db/migration/V1__bike_lifecycle.sql   tabelas (Flyway)
-docs/bike-state-changed-schema.json                       contrato do evento Kafka
+../../docs/schemas/bike-state-changed-schema.json         contrato do evento Kafka
 ```
 
 ## Endpoints
@@ -97,7 +97,7 @@ ligados, passam a ser lidos do token JWT.
 ## Evento no Kafka
 
 Cada mudança de estado publica uma mensagem no tópico **`fleet.events.status`** (chave = `bikeId`, para as
-mudanças da mesma bicicleta chegarem por ordem). O formato está em `docs/bike-state-changed-schema.json`.
+mudanças da mesma bicicleta chegarem por ordem). O formato está em `docs/schemas/bike-state-changed-schema.json`, na raiz do repositório.
 O WebSocket Service consome-o para atualizar o mapa e as dashboards ao vivo.
 
 A mensagem só é enviada **depois** de a base de dados confirmar a mudança. Limitação conhecida: se o Kafka
@@ -115,7 +115,7 @@ mvn spring-boot:run       # arranca em http://localhost:8081
 ```
 
 Os testes cobrem:
-- **Máquina de estados:** as 80 combinações possíveis (4 estados × 5 eventos × 4 papéis), comparadas com
+- **Máquina de estados:** as 100 combinações possíveis (4 estados × 5 eventos × 5 papéis), comparadas com
   uma especificação escrita à parte. Também confirmam que `RETIRED` é final e que todos os estados são alcançáveis.
 - **Serviço:** uma transição válida grava o estado, o histórico e o evento. Uma inválida ou sem permissão não altera nada.
 - **API:** os códigos 200, 400, 403, 404 e 409.
@@ -123,10 +123,30 @@ Os testes cobrem:
 ## Integração no repositório
 
 - O tópico `fleet.events.status` é criado pelo `kafka-init` do `docker-compose.yml` da raiz.
-- O contrato do evento está também em `docs/schemas/bike-state-changed-schema.json`.
+- O contrato do evento está em `docs/schemas/bike-state-changed-schema.json`.
 - A tabela `bikes` é criada aqui só com as colunas do ciclo de vida. O resto do modelo de dados (zonas,
   posições, alertas, tickets, viagens, event store) está em `V2__fleet_data_model.sql`, explicado em
   `docs/data-model.md`. Os endpoints de registo acrescentam as suas colunas numa migração `V3__...` e
   criam as bicicletas com `new Bike(bikeId, agora)`, que as põe em `AVAILABLE`.
 - As 5 bicicletas de exemplo (`MB-2026-001` a `005`, as mesmas do simulador) estão no fim de
-  `V1__bike_lifecycle.sql`. Apagar essas linhas quando o registo estiver ligado.
+  `V1__bike_lifecycle.sql`. **Não apagar essas linhas:** a V1 já foi aplicada e o Flyway recusa-se a
+  arrancar se uma migração aplicada mudar. Quando o registo estiver ligado, uma migração nova
+  (`DELETE FROM bikes WHERE bike_id BETWEEN 'MB-2026-001' AND 'MB-2026-005'`, depois de apagar o que
+  dependa delas) tira-as.
+- O papel `FLEET_ANALYST` existe mas não pode pedir nenhuma transição: `GET /state?role=FLEET_ANALYST`
+  devolve `allowedEvents: []`.
+
+## Correr em Docker
+
+```bash
+docker compose --profile app up -d --build fleet-management   # na raiz do repositório
+docker compose logs -f fleet-management
+```
+
+O serviço fica no perfil `app` para o `docker compose up` normal continuar rápido (só a infraestrutura).
+
+**Segurança:** enquanto `actorRole` vier no corpo do pedido, qualquer um que chegue à porta 8081 pode
+fazer-se passar por técnico ou operador. Por isso o `docker-compose.yml` **não publica** a 8081 no host:
+só os outros contentores (API Gateway, Core API) lhe chegam, por `fleet-management:8081`. Para testar a
+partir do host com `curl`, usar `mvn spring-boot:run`. Quando o Keycloak estiver ligado, o papel passa a
+vir do token JWT e esta restrição deixa de ser necessária.

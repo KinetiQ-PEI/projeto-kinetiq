@@ -241,6 +241,27 @@ services:
 
   # ---------- Operational Path ----------
 
+  # Fleet Management Service: máquina de estados do ciclo de vida (backend/fleet-management)
+  #   docker compose --profile app up -d --build fleet-management
+  # A 8081 NÃO é publicada no host: o papel ainda vem no corpo do pedido (sem JWT), por isso só
+  # os outros contentores lhe chegam, por fleet-management:8081.
+  fleet-management:
+    build: ./backend/fleet-management
+    profiles: [app]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    expose:
+      - "8081"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-kinetiq}
+      DB_USER: ${POSTGRES_USER:-kinetiq}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-kinetiq}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    restart: unless-stopped
+
   # Authentication Service: http://localhost:8180 (consola de admin)
   keycloak:
     image: quay.io/keycloak/keycloak:26.4.0

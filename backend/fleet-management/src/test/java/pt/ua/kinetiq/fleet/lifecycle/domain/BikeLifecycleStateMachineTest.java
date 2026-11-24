@@ -54,7 +54,7 @@ class BikeLifecycleStateMachineTest {
         return s + "+" + e;
     }
 
-    /** Todas as 4 × 5 × 4 = 80 combinações de estado, evento e papel. */
+    /** Todas as 4 × 5 × 5 = 100 combinações de estado, evento e papel. */
     static Stream<Arguments> allCombinations() {
         return Arrays.stream(BikeState.values()).flatMap(s ->
                 Arrays.stream(LifecycleEvent.values()).flatMap(e ->
@@ -113,6 +113,7 @@ class BikeLifecycleStateMachineTest {
             "IN_MAINTENANCE, MAINTENANCE_TECHNICIAN, COMPLETE_REPAIR;RETIRE",
             "AVAILABLE, FLEET_OPERATOR, SEND_TO_MAINTENANCE;RETIRE",
             "IN_USE, MAINTENANCE_TECHNICIAN, ''",
+            "AVAILABLE, FLEET_ANALYST, ''",
     })
     void allowedEventsPerRole(BikeState state, ActorRole role, String events) {
         Set<LifecycleEvent> expected = events.isBlank() ? EnumSet.noneOf(LifecycleEvent.class)
