@@ -1,0 +1,28 @@
+.live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  font-weight: 600;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-indicator__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.live-indicator--stale {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
+.live-indicator--stale .live-indicator__dot {
+  background: var(--color-warning-text);
+}

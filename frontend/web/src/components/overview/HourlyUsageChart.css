@@ -1,0 +1,44 @@
+.hourly-usage__scroll {
+  overflow-x: auto;
+}
+
+.hourly-usage__chart {
+  min-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hourly-usage__bars {
+  height: 150px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  border-bottom: 1px solid var(--color-chart-axis);
+  background-image: linear-gradient(var(--color-chart-grid) 1px, transparent 1px);
+  background-size: 100% 50px;
+}
+
+.hourly-usage__bar {
+  flex: 1;
+  background: var(--color-chart-bar);
+  border-radius: 3px 3px 0 0;
+}
+
+.hourly-usage__bar.is-peak {
+  background: var(--color-primary);
+}
+
+.hourly-usage__axis {
+  display: flex;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.hourly-usage__axis span {
+  flex: 1;
+  text-align: center;
+}

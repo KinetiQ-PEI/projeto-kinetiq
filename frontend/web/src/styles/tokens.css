@@ -1,0 +1,47 @@
+/* Design tokens taken from the mockups (RNF07: shared colours and type). */
+:root {
+  --font-heading: 'Space Grotesk', sans-serif;
+  --font-body: Inter, system-ui, sans-serif;
+
+  --color-primary: #2563eb;
+  --color-primary-soft: #eff4ff;
+  --color-primary-border: #c7d7fe;
+
+  --color-text: #101828;
+  --color-text-strong: #344054;
+  --color-text-muted: #667085;
+  --color-text-subtle: #5b6478; /* ≥ 4.5:1 on white and on the light grey surfaces */
+  --color-icon-muted: #7d8698; /* ≥ 3:1 for icons (WCAG 1.4.11) */
+
+  --color-bg: #f4f6f9;
+  --color-bg-dots: #e4e7ec;
+  --color-surface: #ffffff;
+  --color-border: #e4e7ec;
+  --color-field-border: #7d8698; /* WCAG 1.4.11, from a11y.css */
+
+  --color-warning-bg: #fffbeb;
+  --color-warning-text: #b45309;
+  --color-warning-border: #f5d9a8;
+  --color-danger: #b42318;
+  --color-danger-bg: #fef3f2;
+  --color-success: #22a05a;
+  --color-success-bg: #f0fdf4;
+  --color-success-text: #15803d;
+  --color-neutral-bg: #f0f3f8;
+  --color-chart-bar: #bfd3fb;
+  --color-chart-grid: #f0f3f8;
+  --color-chart-axis: #d0d5dd;
+  --color-primary-hover: #1d4ed8;
+  --color-critical-accent: #d92d20;
+  --color-warning-accent: #dc8a16;
+  --color-info-accent: #7d8698;
+
+  --radius-pill: 9999px;
+  --radius-card: 16px;
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-popover: 0 12px 32px rgba(16, 24, 40, 0.18);
+
+  --page-padding-x: clamp(20px, 4vw, 48px);
+  --page-max-width: 1320px;
+  --header-height: 64px;
+}

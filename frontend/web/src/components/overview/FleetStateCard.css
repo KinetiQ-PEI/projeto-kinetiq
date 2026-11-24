@@ -1,0 +1,47 @@
+.fleet-state {
+  gap: 22px;
+}
+
+.fleet-state__bar {
+  display: flex;
+  height: 18px;
+  border-radius: 9px;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.fleet-state__legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fleet-state__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fleet-state__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.fleet-state__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.fleet-state__count {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
