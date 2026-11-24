@@ -200,8 +200,16 @@ services:
       DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-kinetiq}
       DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-telemetry}
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-kinetiq-dev-token}
+      # Telemetria detalhada guardada 30 dias (GDPR); os agregados por hora ficam em telemetry_hourly
+      DOCKER_INFLUXDB_INIT_RETENTION: ${INFLUXDB_RETENTION:-30d}
+      # Usados por infra/influxdb/init/10-kinetiq-setup.sh (só no primeiro arranque, com o volume vazio)
+      INFLUXDB_HOURLY_BUCKET: ${INFLUXDB_HOURLY_BUCKET:-telemetry_hourly}
+      INFLUXDB_HOURLY_RETENTION: ${INFLUXDB_HOURLY_RETENTION:-400d}
+      INFLUXDB_SINK_USER: ${INFLUXDB_SINK_USER:-kafka-connect}
+      INFLUXDB_SINK_PASSWORD: ${INFLUXDB_SINK_PASSWORD:-kafka-connect-dev}
     volumes:
       - influxdb-data:/var/lib/influxdb2
+      - ./infra/influxdb/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD", "influx", "ping"]
       interval: 10s
@@ -212,6 +220,8 @@ services:
   # Dados operacionais (frota, zonas, eventos) com PostGIS + BD do Keycloak
   postgres:
     image: postgis/postgis:17-3.5
+    # A imagem oficial do PostGIS só existe para amd64; nos Mac Apple Silicon corre emulada
+    platform: linux/amd64
     ports:
       - "5432:5432"
     environment:
